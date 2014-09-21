@@ -1,0 +1,89 @@
+Practical Maschine Learning: Project
+------------------------------------
+
+
+## Summary and study design
+
+
+The following study design  is used to predict the "how well" certain exercises where performed by the subjects (see website: http://groupware.les.inf.puc-rio.br/har#ixzz3DwQYNf79): 
+
+1) I read and clean the training and testing data sets.
+
+2) I devide the training data set into two parts - 80% is modelTraining and 20% is modelTesting part.
+
+3) I use the modelTraining data set to build an random forest prediction algorithm.
+
+4) For cross validation I used the function "rscv" which helps me identify the important parameters. 
+
+5) I test the result of prediction of the random forest algorithm on the modelTesting data set. 
+
+The algorithm works extremely well. I attain an accuracy of 99.6% but I am aware that I underestimate the error. In principal I would have to repeat steps 2) and 3) several times and  recalculate the errors. But the random forest algorithm is time consuming and 
+I would need to build a more efficient algorithm. I also tried the caret package train function but 
+found it to be extremely slow. 
+
+## Getting and cleaning the data
+
+I remove columns with a lot of NAs from the training data. 
+I also remove non-numeric columns, except the "classe" - column which I convert to a factor variable.
+The same columns are removed from the testing set. The testing set ofcourse doesn't have the "classe" column.
+
+```{r, echo = FALSE} 
+setwd("/opt/home/maivi/Coursera")
+library(caret)
+library(randomForest)
+
+
+```
+
+```{r} 
+
+training <- read.csv("./pml-training.csv", header = TRUE)
+testing <- read.csv("./pml-testing.csv", header = TRUE)
+
+count <- which(sapply(training, is.numeric))
+
+t <- training[, count]
+t1 <- testing[, count]
+
+t$classe <- as.factor(training$classe)
+
+count <- colSums(sapply(t, is.na))
+t <- t[, -which(count > nrow(t)/10)]
+t <- t[,-(1:4)]
+training <- t
+
+t1 <- t1[, -which(count > nrow(t)/10)]
+t1 <- t1[,-(1:4)]
+testing <- t1
+
+
+```
+
+```{r} 
+    
+randomSelection <- createDataPartition(training$classe, p = 0.8, list = FALSE)
+modelTraining <- training[randomSelection,]
+modelTesting <- training[-randomSelection,]
+
+#rfModel <- train(classe ~ ., data = modelTraining, na.action = na.omit, method = "rf", verbose = FALSE)
+
+rfModel <- randomForest(classe ~ ., data = modelTraining, na.action = na.omit)
+rfModel
+
+```
+
+```{r}
+result <- rfcv(modelTraining[, -53], modelTraining$classe, cv.fold = 5)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+```
+
+
+```{r}
+
+
+pred <- predict(rfModel, modelTesting)
+
+confusionMatrix(pred, modelTesting$classe)
+```
+
